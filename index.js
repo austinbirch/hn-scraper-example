@@ -1,86 +1,72 @@
 const express = require("express");
 const app = express();
-const puppeteer = require("puppeteer");
+
+const db = require("./db");
+const intervalScraper = require("./interval-scraper");
 
 const WEBSERVER_PORT = 4000;
-const HN_URL = "https://news.ycombinator.com";
 
-async function scrapeHNScores() {
-  const browser = await puppeteer.launch();
-  try {
-    const page = await browser.newPage();
-    await page.goto(HN_URL);
+// update database on interval
+const dbConn = db.makeDBConnection();
+const scraper = intervalScraper.makeIntervalScraper(dbConn);
+intervalScraper.start(scraper);
 
-    // selection could be much better, will do for now
-    // grab each story off of the HN page first page. User info/score
-    // row follows the title row (for the most part?!)
-    const titleRows = await page.$$("tr.athing");
-    const userRows = await page.$$("tr.athing + tr");
-
-    const stories = titleRows.reduce((acc, titleRow, i) => {
-      acc.push({ titleRow, userRow: userRows[i] });
-      return acc;
-    }, []);
-
-    const scores = {};
-    for (story of stories) {
-      // accumulate each user's current front page post score, accounting for users that
-      // have more than one story on the front page
-      const [name, score] = await story.userRow.evaluate(e => {
-        try {
-          return [
-            e.querySelector(".hnuser").innerText,
-            parseInt(e.querySelector(".score").innerText.replace(" points", ""))
-          ];
-        } catch (e) {
-          // if we can't read the selectors we expect, assume it's a row we shouldn't
-          // have selected for now. Strip these out after.
-          return [null, null];
-        }
-      });
-
-      const title = await story.titleRow.evaluate(e => {
-        try {
-          return e.querySelector(".title .storylink").innerText;
-        } catch (e) {
-          return null;
-        }
-      });
-
-      // we didn't get what we expected, so skip this row for now
-      if (name === null || score === null || title === null) {
-        continue;
-      }
-
-      // update our counts
-      const storyMeta = { title, score };
-      if (scores[name]) {
-        (scores[name].points = scores[name].points + score), scores[
-          name
-        ].stories.push(storyMeta);
-      } else {
-        scores[name] = {
-          points: score,
-          stories: [storyMeta]
-        };
-      }
-    }
-
-    return scores;
-  } finally {
-    browser.close();
-  }
-}
-
+// just to make sure it is alive
 app.get("/", (req, res) => {
   res.json({
     message: "hello!"
   });
 });
 
-app.get("/scores", (req, res, next) => {
-  scrapeHNScores()
+// on demand scraping
+app.get("/scores-latest", (req, res, next) => {
+  intervalScraper
+    .update(scraper)
+    .then(dbConn.getScores)
     .then(scores => {
+      return res.json(scores);
+    })
+    .catch(next);
+});
+
+app.get("/scores", (req, res, next) => {
+  const nameSorter = scoreRow => scoreRow.user.toLowerCase;
+  const valueSorter = scoreRow => scoreRow.points;
+
+  // TODO: refactor to share these sorts implementation. Annoyingly
+  // need the opposite comparisons for A->Z + low->high points. Not
+  // going to spend much time here because if not in-mem db then should
+  // sort via DB.
+  const sortName = (a, b) => {
+    const vA = a.user.toLowerCase();
+    const vB = b.user.toLowerCase();
+    if (vA < vB) {
+      return -1;
+    } else if (vA > vB) {
+      return 1;
+    } else {
+      return 0;
+    }
+  };
+
+  const sortPoints = (a, b) => {
+    const vA = a.points;
+    const vB = b.points;
+    if (vA < vB) {
+      return 1;
+    } else if (vA > vB) {
+      return -1;
+    } else {
+      return 0;
+    }
+  };
+
+  dbConn
+    .getScores()
+    .then(scores => {
+      if (req.query.sortBy === "name" || req.query.sortBy === "points") {
+        scores.sort(req.query.sortBy === "name" ? sortName : sortPoints);
+      }
       res.json(scores);
     })
     .catch(next);
