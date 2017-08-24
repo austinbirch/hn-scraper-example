@@ -1,0 +1,14 @@
+{
+  "name": "hn-scraper-example",
+  "version": "0.0.1",
+  "main": "index.js",
+  "scripts": {
+    "devstart": "./node_modules/supervisor/lib/cli-wrapper.js --inspect index.js"
+  },
+  "dependencies": {
+    "express": "^4.15.4"
+  },
+  "devDependencies": {
+    "supervisor": "^0.12.0"
+  }
+}
