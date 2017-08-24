@@ -6,7 +6,7 @@ const intervalScraper = require("./interval-scraper");
 
 const WEBSERVER_PORT = 4000;
 
-// update database on interval
+// update scores database every so often with our scraper
 const dbConn = db.makeDBConnection();
 const scraper = intervalScraper.makeIntervalScraper(dbConn);
 intervalScraper.start(scraper);
@@ -29,6 +29,7 @@ app.get("/scores-latest", (req, res, next) => {
     .catch(next);
 });
 
+// fetch the latest scores we have
 app.get("/scores", (req, res, next) => {
   const nameSorter = scoreRow => scoreRow.user.toLowerCase;
   const valueSorter = scoreRow => scoreRow.points;

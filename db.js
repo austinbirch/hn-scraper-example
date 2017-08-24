@@ -3,7 +3,6 @@ const db = {
   scores: []
 };
 
-// scores will be a mapping
 async function updateScores(scores) {
   return (db.scores = scores);
 }

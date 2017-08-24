@@ -8,7 +8,7 @@ async function scrapeHNScores() {
     await page.goto(HN_URL);
 
     // selection could be much better, will do for now
-    // grab each story off of the HN page first page. User info/score
+    // grab each story off of the HN front page. User info/score
     // row follows the title row (for the most part?!)
     const titleRows = await page.$$("tr.athing");
     const userRows = await page.$$("tr.athing + tr");
