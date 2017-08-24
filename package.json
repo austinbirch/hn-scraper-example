@@ -6,7 +6,8 @@
     "devstart": "./node_modules/supervisor/lib/cli-wrapper.js --inspect index.js"
   },
   "dependencies": {
-    "express": "^4.15.4"
+    "express": "^4.15.4",
+    "puppeteer": "GoogleChrome/puppeteer.git#a330c8eeba5d57e4d3757cba4b0f4408b25c374b"
   },
   "devDependencies": {
     "supervisor": "^0.12.0"
